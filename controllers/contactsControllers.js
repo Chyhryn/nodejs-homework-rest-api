@@ -1,14 +1,14 @@
 const {
-  listContacts,
+  getAllContacts,
   getContactById,
-  addContact,
+  createContact,
   removeContact,
   updateContact,
-} = require("../models/contacts");
-const { v4: uuidv4 } = require("uuid");
+  updateStatusContact,
+} = require("../service");
 
 const getContactsController = async (req, res) => {
-  const contacts = await listContacts();
+  const contacts = await getAllContacts();
   res.status(200).json(contacts);
 };
 
@@ -22,15 +22,14 @@ const getContactByIdController = async (req, res) => {
 };
 
 const addContactController = async (req, res) => {
-  const { name, email, phone } = req.body;
-  const newContact = { id: uuidv4(), name, email, phone };
-  const response = await addContact(newContact);
+  const { name, email, phone, favorite = false } = req.body;
+  const response = await createContact({ name, email, phone, favorite });
   res.status(201).json(response);
 };
 
 const deleteContactByIdController = async (req, res) => {
   const { id } = req.params;
-  const response = removeContact(id);
+  const response = await removeContact(id);
   if (!response) {
     return res.status(404).json({ message: "Not found" });
   }
@@ -53,10 +52,27 @@ const changeContactByIdController = async (req, res) => {
   res.status(200).json(response);
 };
 
+const updateStatusContactController = async (req, res) => {
+  const { id } = req.params;
+  const { body } = req;
+
+  if (Object.keys(body).length === 0) {
+    return res.status(400).json({ message: "missing field favorite" });
+  }
+
+  const response = await updateStatusContact(id, body);
+
+  if (!response) {
+    return res.status(404).json({ message: "Not found" });
+  }
+  res.status(200).json(response);
+};
+
 module.exports = {
   getContactsController,
   getContactByIdController,
   addContactController,
   deleteContactByIdController,
   changeContactByIdController,
+  updateStatusContactController,
 };

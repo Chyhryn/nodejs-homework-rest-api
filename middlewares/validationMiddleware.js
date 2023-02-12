@@ -18,6 +18,7 @@ module.exports = {
         .length(14)
         .pattern(/^(.)+[0-9]+(.)+\s+[0-9]+(.)+[0-9]$/)
         .required(),
+      favorite: Joi.boolean(),
     });
     const validationResult = schema.validate(req.body);
 
@@ -39,6 +40,7 @@ module.exports = {
       phone: Joi.string()
         .length(14)
         .pattern(/^(.)+[0-9]+(.)+\s+[0-9]+(.)+[0-9]$/),
+      favorite: Joi.boolean(),
     });
     const validationResult = schema.validate(req.body);
     if (validationResult.error) {
