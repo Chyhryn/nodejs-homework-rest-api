@@ -1,20 +1,15 @@
-const {
-  getAllContacts,
-  getContactById,
-  createContact,
-  removeContact,
-  updateContact,
-  updateStatusContact,
-} = require("../service");
+const { contactsService } = require("../services");
 
 const getContactsController = async (req, res) => {
-  const contacts = await getAllContacts();
+  const owner = req.user;
+  const contacts = await contactsService.getAllContacts(owner);
   res.status(200).json(contacts);
 };
 
 const getContactByIdController = async (req, res) => {
   const { id } = req.params;
-  const contact = await getContactById(id);
+  const owner = req.user;
+  const contact = await contactsService.getContactById(id, owner);
   if (!contact) {
     return res.status(400).json({ message: "Not found" });
   }
@@ -23,13 +18,21 @@ const getContactByIdController = async (req, res) => {
 
 const addContactController = async (req, res) => {
   const { name, email, phone, favorite = false } = req.body;
-  const response = await createContact({ name, email, phone, favorite });
+  const owner = req.user;
+  const response = await contactsService.createContact(
+    name,
+    email,
+    phone,
+    favorite,
+    owner
+  );
   res.status(201).json(response);
 };
 
 const deleteContactByIdController = async (req, res) => {
   const { id } = req.params;
-  const response = await removeContact(id);
+  const owner = req.user;
+  const response = await contactsService.removeContact(id, owner);
   if (!response) {
     return res.status(404).json({ message: "Not found" });
   }
@@ -39,12 +42,13 @@ const deleteContactByIdController = async (req, res) => {
 const changeContactByIdController = async (req, res) => {
   const { id } = req.params;
   const { body } = req;
+  const owner = req.user;
 
   if (Object.keys(body).length === 0) {
     return res.status(400).json({ message: "missing fields" });
   }
 
-  const response = await updateContact(id, body);
+  const response = await contactsService.updateContact(id, owner, body);
 
   if (!response) {
     return res.status(404).json({ message: "Not found" });
@@ -55,12 +59,13 @@ const changeContactByIdController = async (req, res) => {
 const updateStatusContactController = async (req, res) => {
   const { id } = req.params;
   const { body } = req;
+  const owner = req.user;
 
   if (Object.keys(body).length === 0) {
     return res.status(400).json({ message: "missing field favorite" });
   }
 
-  const response = await updateStatusContact(id, body);
+  const response = await contactsService.updateStatusContact(id, owner, body);
 
   if (!response) {
     return res.status(404).json({ message: "Not found" });

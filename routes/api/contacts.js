@@ -1,31 +1,49 @@
 const express = require("express");
-
 const {
-  getContactsController,
-  getContactByIdController,
-  addContactController,
-  deleteContactByIdController,
-  changeContactByIdController,
-  updateStatusContactController,
-} = require("../../controllers/contactsControllers");
+  userValidationMiddleware,
+  validationMiddleware,
+} = require("../../middlewares");
 
-const {
-  addContactValidation,
-  changeContactByIdValidation,
-} = require("../../middlewares/validationMiddleware");
+const { contactsControllers } = require("../../controllers");
 
 const router = express.Router();
 
-router.get("/", getContactsController);
+router.get(
+  "/",
+  userValidationMiddleware,
+  contactsControllers.getContactsController
+);
 
-router.get("/:id", getContactByIdController);
+router.get(
+  "/:id",
+  userValidationMiddleware,
+  contactsControllers.getContactByIdController
+);
 
-router.post("/", addContactValidation, addContactController);
+router.post(
+  "/",
+  userValidationMiddleware,
+  validationMiddleware.addContactValidation,
+  contactsControllers.addContactController
+);
 
-router.delete("/:id", deleteContactByIdController);
+router.delete(
+  "/:id",
+  userValidationMiddleware,
+  contactsControllers.deleteContactByIdController
+);
 
-router.put("/:id", changeContactByIdValidation, changeContactByIdController);
+router.put(
+  "/:id",
+  userValidationMiddleware,
+  validationMiddleware.changeContactByIdValidation,
+  contactsControllers.changeContactByIdController
+);
 
-router.patch("/:id/favorite", updateStatusContactController);
+router.patch(
+  "/:id/favorite",
+  userValidationMiddleware,
+  contactsControllers.updateStatusContactController
+);
 
 module.exports = { contactsRouter: router };
