@@ -1,12 +1,17 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { usersService } = require("../services");
+const gravatar = require("gravatar");
+const Jimp = require("jimp");
+const fs = require("fs/promises");
+const path = require("path");
 
 const salt = Number(process.env.SALT);
+const secretKey = process.env.SECRET_KEY;
 
 function generateToken(data) {
   const dataForToken = { data };
-  return jwt.sign(dataForToken, "secret", { expiresIn: "2h" });
+  return jwt.sign(dataForToken, secretKey, { expiresIn: "2h" });
 }
 
 const registerUser = async (req, res) => {
@@ -17,6 +22,8 @@ const registerUser = async (req, res) => {
     return res.status(409).json({ message: "Email in use" });
   }
 
+  const avatarURL = gravatar.url(email);
+
   const hashPassword = bcrypt.hashSync(password, salt, function (err) {
     return res.status(400).json({ message: err.message });
   });
@@ -24,6 +31,7 @@ const registerUser = async (req, res) => {
   const user = await usersService.createUser({
     ...req.body,
     password: hashPassword,
+    avatarURL,
   });
   if (!user) {
     return res.status(400).json({ message: "Can`t create user!" });
@@ -32,6 +40,7 @@ const registerUser = async (req, res) => {
   res.status(201).json({
     user: {
       email: user.email,
+      avatarURL: user.avatarURL,
       subscription: user.subscription,
     },
   });
@@ -78,8 +87,38 @@ const logoutUser = async (req, res) => {
   res.status(204).json({ message: "No Content" });
 };
 
+const changeAvatar = async (req, res) => {
+  const id = req.user;
+
+  try {
+    const tempAvatarPath = req.file.path;
+    const newAvatarPath = path.join("public/avatars", req.file.filename);
+
+    const avatar = await Jimp.read(tempAvatarPath);
+    avatar.resize(250, 250).quality(60);
+    await avatar.writeAsync(tempAvatarPath);
+
+    await fs.rename(tempAvatarPath, newAvatarPath);
+
+    const user = await usersService.findUser({ _id: id });
+    user.avatarURL = newAvatarPath;
+
+    const updateUserAvatar = await user.save();
+
+    if (!updateUserAvatar) {
+      return res.status(400).json({ message: "Can`t save avatar" });
+    }
+
+    res.status(200).json({ avatarURL: user.avatarURL });
+  } catch (error) {
+    await fs.unlink(req.file.path);
+    res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   logoutUser,
+  changeAvatar,
 };
