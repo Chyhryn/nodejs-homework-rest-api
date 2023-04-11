@@ -7,7 +7,9 @@ const {
   userValidationMiddleware,
   authValidationMiddleware,
   upload,
+  emailValidation,
 } = require("../../middlewares");
+const { sendEmail } = require("../../helpers");
 
 router.post(
   "/register",
@@ -18,6 +20,10 @@ router.post(
 router.post("/login", authValidationMiddleware, usersControllers.loginUser);
 
 router.get("/logout", userValidationMiddleware, usersControllers.logoutUser);
+
+router.get("/verify/:verificationToken", usersControllers.userVerification);
+
+router.post("/verify", emailValidation, usersControllers.verificationRequest);
 
 router.patch(
   "/avatars",

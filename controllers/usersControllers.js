@@ -1,21 +1,15 @@
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 const { usersService } = require("../services");
 const gravatar = require("gravatar");
 const Jimp = require("jimp");
 const fs = require("fs/promises");
 const path = require("path");
-
-const salt = Number(process.env.SALT);
-const secretKey = process.env.SECRET_KEY;
-
-function generateToken(data) {
-  const dataForToken = { data };
-  return jwt.sign(dataForToken, secretKey, { expiresIn: "2h" });
-}
+const { v4: uuidv4 } = require("uuid");
+const { sendEmail, generateToken } = require("../helpers");
 
 const registerUser = async (req, res) => {
   const { email, password } = req.body;
+  const salt = Number(process.env.SALT);
 
   const checkUser = await usersService.findUser({ email });
   if (checkUser) {
@@ -28,14 +22,24 @@ const registerUser = async (req, res) => {
     return res.status(400).json({ message: err.message });
   });
 
+  const verificationToken = uuidv4();
+
   const user = await usersService.createUser({
     ...req.body,
     password: hashPassword,
     avatarURL,
+    verificationToken,
   });
   if (!user) {
     return res.status(400).json({ message: "Can`t create user!" });
   }
+
+  const msg = {
+    to: email,
+    subject: "Registration confirmation",
+    html: `Please confirm your email by clicking this <a target="_blank" href="http://localhost:8080/api/users/verify/${verificationToken}">link</a>`,
+  };
+  await sendEmail(msg);
 
   res.status(201).json({
     user: {
@@ -55,8 +59,15 @@ const loginUser = async (req, res) => {
     return res.status(401).json({ message: "Email or password is wrong" });
   }
 
+  if (!user.verify) {
+    return res.status(401).json({
+      message: "Not verified user",
+    });
+  }
+
   const token = generateToken(user._id);
   user.token = token;
+  user.verificationToken = "verified";
 
   const updateUserWithToken = await user.save();
 
@@ -85,6 +96,56 @@ const logoutUser = async (req, res) => {
   }
 
   res.status(204).json({ message: "No Content" });
+};
+
+const userVerification = async (req, res) => {
+  const { verificationToken } = req.params;
+
+  const user = await usersService.findUser({ verificationToken });
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  const id = { _id: user._id };
+  const data = { verify: true, verificationToken: null };
+
+  const updateUser = await usersService.updateUserById(id, data);
+
+  if (!updateUser) {
+    return res.status(400).json({ message: "Can`t update user" });
+  }
+
+  res.status(200).json({
+    message: "Verification successful",
+  });
+};
+
+const verificationRequest = async (req, res) => {
+  const { email } = req.body;
+  const user = await usersService.findUser({ email });
+
+  if (!user) {
+    return res.status(401).json({ message: "Email is wrong" });
+  }
+
+  if (user.verify) {
+    return res
+      .status(400)
+      .json({ message: "Verification has already been passed" });
+  }
+
+  const msg = {
+    to: email,
+    subject: "Registration confirmation",
+    html: `Please confirm your email by clicking this <a target="_blank" href="http://localhost:8080/api/users/verify/${user.verificationToken}">link</a>`,
+  };
+
+  await sendEmail(msg);
+
+  res.status(200).json({
+    message: "Verification email sent",
+  });
 };
 
 const changeAvatar = async (req, res) => {
@@ -120,5 +181,7 @@ module.exports = {
   registerUser,
   loginUser,
   logoutUser,
+  userVerification,
+  verificationRequest,
   changeAvatar,
 };
